@@ -1,86 +1,43 @@
-from flask import Flask, request
-import sqlite3
-from datetime import datetime
+from flask import Flask, request, jsonify
+import psycopg2
 import os
 
 app = Flask(__name__)
 
 # --------------------------------
-# RUTA FIJA A LA BASE DE DATOS
+# CONEXIÓN A POSTGRESQL (RENDER)
 # --------------------------------
 
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-DB_PATH = os.path.join(BASE_DIR, "datos.db")
+def get_connection():
+    return psycopg2.connect(
+        os.environ["DATABASE_URL"],
+        sslmode="require"
+    )
 
 # --------------------------------
-# CREAR BASE DE DATOS SI NO EXISTE
+# CREAR TABLA SI NO EXISTE
 # --------------------------------
 
 def init_db():
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
+    conn = get_connection()
+    cur = conn.cursor()
 
-    c.execute("""
-    CREATE TABLE IF NOT EXISTS aperturas (
-        id INTEGER PRIMARY KEY AUTOINCREMENT,
-        equipo TEXT,
-        fecha TEXT
-    )
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS registros (
+            id SERIAL PRIMARY KEY,
+            equipo TEXT,
+            fecha TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
     """)
 
     conn.commit()
+    cur.close()
     conn.close()
 
 init_db()
 
 # --------------------------------
-# RECIBIR REGISTRO DEL .EXE
-# --------------------------------
-
-@app.route("/registro", methods=["POST"])
-def registro():
-
-    datos = request.json
-
-    equipo = datos.get("equipo")
-    fecha = datetime.now().isoformat()
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute(
-        "INSERT INTO aperturas (equipo, fecha) VALUES (?, ?)",
-        (equipo, fecha)
-    )
-
-    conn.commit()
-    conn.close()
-
-    print("✔ Registro recibido:", equipo, fecha)
-
-    return {"ok": True}
-
-# --------------------------------
-# VER TOTAL DE APERTURAS
-# --------------------------------
-
-@app.route("/total")
-def total():
-
-    conn = sqlite3.connect(DB_PATH)
-    c = conn.cursor()
-
-    c.execute("SELECT COUNT(*) FROM aperturas")
-    total = c.fetchone()[0]
-
-    conn.close()
-
-    print("📊 Consultando total:", total)
-
-    return {"total": total}
-
-# --------------------------------
-# PÁGINA PRINCIPAL (OPCIONAL)
+# RUTA PRINCIPAL
 # --------------------------------
 
 @app.route("/")
@@ -88,7 +45,47 @@ def home():
     return "Servidor funcionando correctamente 🚀"
 
 # --------------------------------
-# INICIAR SERVIDOR
+# REGISTRO DE APERTURA
+# --------------------------------
+
+@app.route("/registro", methods=["POST"])
+def registro():
+    data = request.get_json()
+    equipo = data.get("equipo", "desconocido")
+
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute(
+        "INSERT INTO registros (equipo) VALUES (%s)",
+        (equipo,)
+    )
+
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    return jsonify({"status": "ok"})
+
+# --------------------------------
+# TOTAL DE REGISTROS
+# --------------------------------
+
+@app.route("/total")
+def total():
+    conn = get_connection()
+    cur = conn.cursor()
+
+    cur.execute("SELECT COUNT(*) FROM registros")
+    total = cur.fetchone()[0]
+
+    cur.close()
+    conn.close()
+
+    return jsonify({"total": total})
+
+# --------------------------------
+# ARRANQUE (RENDER)
 # --------------------------------
 
 if __name__ == "__main__":
