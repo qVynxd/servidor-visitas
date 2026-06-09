@@ -91,25 +91,6 @@ def total():
     return jsonify({"total": total})
 
 # --------------------------------
-# TEST DE CONEXIÓN
-# --------------------------------
-
-@app.route("/db-info")
-def db_info():
-    conn = get_connection()
-    cur = conn.cursor()
-
-    cur.execute("SELECT current_database(), inet_server_addr();")
-    db = cur.fetchone()
-
-    cur.close()
-    conn.close()
-
-    return {
-        "database": db[0],
-        "server_ip": str(db[1])
-    }
-# --------------------------------
 # INFORMACIÓN DE LA BASE
 # --------------------------------
 
