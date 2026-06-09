@@ -94,25 +94,21 @@ def total():
 # TEST DE CONEXIÓN
 # --------------------------------
 
-@app.route("/test-db")
-def test_db():
+@app.route("/db-info")
+def db_info():
+    conn = get_connection()
+    cur = conn.cursor()
 
-    try:
-        conn = get_connection()
-        conn.close()
+    cur.execute("SELECT current_database(), inet_server_addr();")
+    db = cur.fetchone()
 
-        return jsonify({
-            "ok": True,
-            "mensaje": "Conexión a PostgreSQL correcta"
-        })
+    cur.close()
+    conn.close()
 
-    except Exception as e:
-
-        return jsonify({
-            "ok": False,
-            "error": str(e)
-        })
-
+    return {
+        "database": db[0],
+        "server_ip": str(db[1])
+    }
 # --------------------------------
 # INFORMACIÓN DE LA BASE
 # --------------------------------
