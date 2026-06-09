@@ -4,19 +4,11 @@ import os
 
 app = Flask(__name__)
 
-# --------------------------------
-# CONEXIÓN A POSTGRESQL (RENDER)
-# --------------------------------
-
 def get_connection():
     return psycopg2.connect(
         os.environ["DATABASE_URL"],
         sslmode="require"
     )
-
-# --------------------------------
-# CREAR TABLA SI NO EXISTE
-# --------------------------------
 
 def init_db():
     conn = get_connection()
@@ -36,21 +28,15 @@ def init_db():
 
 init_db()
 
-# --------------------------------
-# RUTA PRINCIPAL
-# --------------------------------
-
 @app.route("/")
 def home():
     return "Servidor funcionando correctamente 🚀"
 
-# --------------------------------
-# REGISTRO DE APERTURA
-# --------------------------------
-
 @app.route("/registro", methods=["POST"])
 def registro():
+
     data = request.get_json()
+
     equipo = data.get("equipo", "desconocido")
 
     conn = get_connection()
@@ -65,14 +51,13 @@ def registro():
     cur.close()
     conn.close()
 
-    return jsonify({"status": "ok"})
+    print("✔ Registro recibido:", equipo)
 
-# --------------------------------
-# TOTAL DE REGISTROS
-# --------------------------------
+    return jsonify({"ok": True})
 
 @app.route("/total")
 def total():
+
     conn = get_connection()
     cur = conn.cursor()
 
@@ -84,10 +69,18 @@ def total():
 
     return jsonify({"total": total})
 
-# --------------------------------
-# ARRANQUE (RENDER)
-# --------------------------------
-
 if __name__ == "__main__":
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port)
+
+@app.route("/test-db")
+def test_db():
+
+    try:
+        conn = get_connection()
+        conn.close()
+
+        return {"db": "ok"}
+
+    except Exception as e:
+        return {"db": str(e)}
